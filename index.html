@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizador Léxico y Sintáctico</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            display: flex;
+        }
+        textarea {
+            width: 400px;
+            height: 400px;
+            margin-right: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f0f0f0;
+        }
+        button {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <h1>Analizador Léxico y Sintáctico</h1>
+        <textarea id="code" name="code" placeholder="Escribe tu código aquí..."></textarea>
+    </div>
+    <div style="margin-left: 20px;">
+        <h2>Análisis Léxico</h2>
+        <table id="lexical-analysis">
+            <thead>
+                <tr>
+                    <th>Línea</th>
+                    <th>Token</th>
+                    <th>Palabra Reservada</th>
+                    <th>Identificador</th>
+                    <th>Variable</th>
+                    <th>Símbolo</th>
+                    <th>Cadena</th>
+                    <th>Número</th>
+                    <th>Tipo de Token</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <h2>Análisis Sintáctico</h2>
+        <pre id="syntactic-analysis"></pre>
+
+        <h2>Estadísticas</h2>
+        <table id="statistics">
+            <thead>
+                <tr>
+                    <th>Total Identificadores</th>
+                    <th>Total Palabras Reservadas</th>
+                    <th>Total Variables</th>
+                    <th>Total Tokens</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td id="total-identifiers">0</td>
+                    <td id="total-reserved-words">0</td>
+                    <td id="total-variables">0</td>
+                    <td id="total-tokens">0</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <button onclick="analyze()">Analizar</button>
+        <button onclick="clearText()">Limpiar</button>
+    </div>
+
+    <script>
+        const palabrasReservadas = ["int", "read", "printf", "end"];
+        const simbolos = {
+            "(": "<Paréntesis de apertura>",
+            ")": "<Paréntesis de cierre>",
+            "{": "<Llave de apertura>",
+            "}": "<Llave de cierre>",
+            ";": "<Punto y coma>",
+            "=": "<Asignación>",
+            "+": "<Operador Suma>"
+        };
+
+        function analyze() {
+            const code = document.getElementById('code').value.trim();
+            clearTables();
+            lexicalAnalysis(code);
+            syntacticAnalysis(code);
+        }
+
+        function clearTables() {
+            document.getElementById('lexical-analysis').querySelector('tbody').innerHTML = '';
+            document.getElementById('total-identifiers').innerText = '0';
+            document.getElementById('total-reserved-words').innerText = '0';
+            document.getElementById('total-variables').innerText = '0';
+            document.getElementById('total-tokens').innerText = '0';
+        }
+
+        function lexicalAnalysis(code) {
+            const lines = code.split('\n');
+            const lexicalTable = document.getElementById('lexical-analysis').querySelector('tbody');
+            let totalIdentificadores = 0;
+            let totalPalabrasReservadas = 0;
+            let totalVariables = 0;
+            let totalTokens = 0;
+            const variables = new Set();
+
+            lines.forEach((line, lineNum) => {
+                const tokens = separateTokens(line);
+                tokens.forEach(token => {
+                    const classification = classifyToken(token);
+                    const newRow = document.createElement('tr');
+
+                    const isReserved = palabrasReservadas.includes(token) ? "Sí" : "No";
+                    const isIdentifier = classification === "<Identificador>" ? "Sí" : "No";
+                    const isVariable = isIdentifier === "Sí" && !variables.has(token) ? "Sí" : "No";
+
+                    if (isVariable === "Sí") {
+                        variables.add(token);
+                        totalVariables++;
+                    }
+
+                    newRow.innerHTML = `
+                        <td>${lineNum + 1}</td>
+                        <td>${token}</td>
+                        <td>${isReserved}</td>
+                        <td>${isIdentifier}</td>
+                        <td>${isVariable}</td>
+                        <td>${token in simbolos ? "Sí" : "No"}</td>
+                        <td>${classification === "<Cadena>" ? "Sí" : "No"}</td>
+                        <td>${classification === "<Número>" ? "Sí" : "No"}</td>
+                        <td>${classification}</td>
+                    `;
+
+                    lexicalTable.appendChild(newRow);
+
+                    // Actualizar contadores
+                    if (isReserved === "Sí") totalPalabrasReservadas++;
+                    if (classification === "<Identificador>" || classification === "<Número>") totalIdentificadores++;
+                    if (token in simbolos) totalTokens++;
+                });
+            });
+
+            document.getElementById('total-identifiers').innerText = totalIdentificadores;
+            document.getElementById('total-reserved-words').innerText = totalPalabrasReservadas;
+            document.getElementById('total-variables').innerText = totalVariables;
+            document.getElementById('total-tokens').innerText = totalTokens;
+        }
+
+        function separateTokens(line) {
+            for (let simbolo in simbolos) {
+                line = line.replace(new RegExp(`\\${simbolo}`, 'g'), ` ${simbolo} `);
+            }
+            return line.split(/\s+/).filter(token => token);
+        }
+
+        function classifyToken(token) {
+            if (palabrasReservadas.includes(token)) {
+                return "<Palabra Reservada>";
+            } else if (token in simbolos) {
+                return simbolos[token];
+            } else if (/^\d+$/.test(token)) {
+                return "<Número>";
+            } else if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(token)) {
+                return "<Identificador>";
+            } else if (/^".*"$/.test(token)) {
+                return "<Cadena>";
+            }
+            return "<Desconocido>";
+        }
+
+        function syntacticAnalysis(code) {
+            const lines = code.split('\n');
+            let result = "ANÁLISIS SINTÁCTICO\n";
+            let hasErrors = false;
+
+            lines.forEach((line, idx) => {
+                const trimmedLine = line.trim();
+
+                // Comprobamos si la línea es un bloque, declaración o función
+                if (trimmedLine && !trimmedLine.startsWith("read") && !trimmedLine.startsWith("printf") && !trimmedLine.startsWith("end")) {
+                    // Solo se espera un punto y coma al final de las declaraciones, no en las líneas de bloque
+                    if (!trimmedLine.endsWith(";") && !trimmedLine.endsWith("{") && !trimmedLine.endsWith("}")) {
+                        result += `Error en la línea ${idx + 1}: falta ';'\n`;
+                        hasErrors = true;
+                    }
+                }
+            });
+
+            if (!hasErrors) {
+                result += "El código está correcto.";
+            }
+
+            document.getElementById('syntactic-analysis').innerText = result;
+        }
+
+        function clearText() {
+            document.getElementById('code').value = '';
+            clearTables();
+        }
+    </script>
+</body>
+</html>
